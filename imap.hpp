@@ -40,10 +40,15 @@ public:
 	* Get all messages in the INBOX mailbox terminated by a nullptr (like we did in class)
 	*/
 	Message** getMessages();
-
 	/**
 	* connect to the specified server (143 is the standard unencrypte imap port)
 	*/
+	//self-defined function to fetch mesage. probably best left to the message class (review later)
+	void fetch_msg(struct mailimap* imap, uint32_t uid);
+
+	//self-defined function to get UID for a specific message
+	static uint32_t get_uid(struct mailimap_msg_att* msg_att); 
+
 	void connect(std::string const& server, size_t port = 143);
 	/**
 	* log in to the server (connect first, then log in)
