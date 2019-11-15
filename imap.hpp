@@ -5,6 +5,8 @@
 #include <string>
 #include <functional>
 #include <cstring>
+//self-included
+#include <vector>
 
 namespace IMAP {
 class Message {
@@ -27,11 +29,13 @@ public:
 	 */
 	 //self-defined function to fetch message
 	void fetch_msg(struct mailimap* imap, uint32_t uid);
-	// //self-defined function to get
-	// // char* get_msg_att_msg_content(struct mailimap_msg_att * msg_att, size_t* p_msg_size);
-	// //
+	// //self-defined function to get msg att, worth modifying into string to return
+	char* get_msg_att_msg_content(struct mailimap_msg_att * msg_att);
+	//
 	// // char* get_msg_content(clist* fetch_result, size_t* p_msg_size);
 	//
+	char* get_msg_header(struct mailimap_msg_att * msg_att);
+
 	void deleteFromMailbox();
 	//not included, so is there a need for a destructor on the message side?
 
@@ -60,9 +64,6 @@ public:
 	/**
 	* connect to the specified server (143 is the standard unencrypte imap port)
 	*/
-	//self-defined function to fetch message content (should moved into message portion)
-	//self-defined function to get message attribute message content
-
 	//self-defined function to get UID for a specific message
 	uint32_t get_uid(struct mailimap_msg_att* msg_att);
 	//get message count
@@ -87,7 +88,6 @@ public:
 private:
 	mailimap* session;
 	Message** msgPtr = NULL;
-	uint32_t UID = 36;
 	//temp variable
 	int msgCount;
 	//NOT YET freed the underlying mailbox reference

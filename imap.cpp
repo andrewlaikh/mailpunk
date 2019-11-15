@@ -13,7 +13,6 @@ Session::Session(std::function<void()> updateUI)
 
 Message** Session::getMessages()
 {
-
     //TBC: CHECK if status information should be obtained BEFORE the data status above is freed.
     // //NOTE that mailimap set new interval ONLY gets a set with a single interval.ALSO need to confirm if item is to be freed.
     struct mailimap_set* mailimapSetPtr = mailimap_set_new_interval(1,0);
@@ -21,42 +20,42 @@ Message** Session::getMessages()
     struct mailimap_fetch_type* fetch_type = mailimap_fetch_type_new_fetch_att_list_empty();
     //creates a imap fetch att structure to request unique ID to msg
     struct mailimap_fetch_att* fetch_att = mailimap_fetch_att_new_uid();
-    //adds a given fetch attribute to the mailimap fetch structure
+    //adds a given fetch attribute to the mailimap fetch structure, in this case list of UIDs
     mailimap_fetch_type_new_fetch_att_list_add(fetch_type, fetch_att);
-
     //basically just initialise a clist bc the clist is JUST filled in.
     clist* fetch_result;
     //declare iterator to clist
     clistiter* cur;
-    //retrieve data associated with given message numbers.
+    //retrieve data associated with given message numbers.In this case, UID numbers
     check_error(mailimap_fetch(session, mailimapSetPtr, fetch_type, &fetch_result), "MAILIMAP_ERROR_FETCH");
-    //
+
     msgCount = get_msg_count();
     // //initialising array to store messages
     // //http://www.fredosaurus.com/notes-cpp/newdelete/50dynamalloc.html
     msgPtr = new Message*[msgCount];
-    int i = 0;
+
+    int messageArrayPoint = 0;
+    // Going through list of UID messages
+    for(cur=clist_begin(fetch_result); cur !=NULL; cur = clist_next(cur))
     {
-      msgPtr[i] =new Message(session,UID,msgCount);
-    }
-    // //basically using the proposed answer to fetch list of messages
-    // for(cur=clist_begin(fetch_result); cur !=NULL; cur = clist_next(cur))
-    // {
-    //   struct mailimap_msg_att* msg_att;
-    //   uint32_t uid;
-    //   //get the list of attributes from a clist elmeent
-    //     msg_att=(struct mailimap_msg_att*)clist_content(cur);
-    //     uid=get_uid(msg_att);
-    //   if(uid==0)
-    //   {
-    //     continue;
-    //   }
+      struct mailimap_msg_att* msg_att;
+      uint32_t uid;
+    //get the list of attributes from a clist elmeent
+      msg_att=(struct mailimap_msg_att*)clist_content(cur);
+      uid=get_uid(msg_att);
+    //skip over if UID is 0.
+      if(uid==0)
+      {
+        continue;
+      }
+      msgPtr[messageArrayPoint]=new Message(session,uid, msgCount);
+      messageArrayPoint++;
     //   *(msgPtr[i]) = Message(session,uid, msgCount);
-    //   msgPtr[i]->fetch_msg(session,uid);
-    // //   i++;
-    // }
+    //   msgPtr[i]->fetch_msg(session,uid);messageArrayPoint
+    }
     //MAKE SURE that you find a way to free the message pointer later on
     // Message**msgPtrPtr = &msgPtr;
+    mailimap_fetch_list_free(fetch_result);
     return msgPtr;
 }
 
@@ -103,31 +102,49 @@ int Session::get_msg_count()
   mailimap_status_att_list_free(attListPtr);
   return value;
 }
-//helper function to get messages. BUT should you have a friend function instead OR something else so that information can be obtained?
 
-// char* Message::get_msg_att_msg_content(struct mailimap_msg_att * msg_att, size_t * p_msg_size)
-// {
-//   clistiter * cur;
-//
-//   /* iterate on each result of one given message */
-//   for(cur = clist_begin(msg_att->att_list) ; cur != NULL ; cur = clist_next(cur)) {
-//     struct mailimap_msg_att_item * item;
-//
-//     item = (mailimap_msg_att_item*)clist_content(cur);
-//     if (item->att_type != MAILIMAP_MSG_ATT_ITEM_STATIC) {
-//       continue;
-//     }
-//
-//     if (item->att_data.att_static->att_type != MAILIMAP_MSG_ATT_BODY_SECTION) {
-//       continue;
-//     }
-//
-//     * p_msg_size = item->att_data.att_static->att_data.att_body_section->sec_length;
-//     return item->att_data.att_static->att_data.att_body_section->sec_body_part;
-//   }
-//
-//   return NULL;
-// }
+char* Message::get_msg_att_msg_content(struct mailimap_msg_att * msg_att)
+{
+  /* iterate on each result of one given message */
+  for(clistiter* cur = clist_begin(msg_att->att_list) ; cur != NULL ; cur = clist_next(cur)) {
+    struct mailimap_msg_att_item * item;
+
+    item = (mailimap_msg_att_item*)clist_content(cur);
+    if (item->att_type != MAILIMAP_MSG_ATT_ITEM_STATIC) {
+      continue;
+    }
+
+    if (item->att_data.att_static->att_type != MAILIMAP_MSG_ATT_BODY_SECTION) {
+      continue;
+    }
+
+    return item->att_data.att_static->att_data.att_body_section->sec_body_part;
+  }
+
+  return NULL;
+}
+
+char* Message::get_msg_header(struct mailimap_msg_att * msg_att)
+{
+  /* iterate on each result of one given message */
+  for(clistiter* cur = clist_begin(msg_att->att_list) ; cur != NULL ; cur = clist_next(cur)) {
+    struct mailimap_msg_att_item * item;
+
+    item = (mailimap_msg_att_item*)clist_content(cur);
+    if (item->att_type != MAILIMAP_MSG_ATT_ITEM_STATIC) {
+      continue;
+    }
+
+    if (item->att_data.att_static->att_type != MAILIMAP_MSG_ATT_RFC822_HEADER) {
+      continue;
+    }
+
+    return item->att_data.att_static-> att_data.att_rfc822_header.att_content;
+  }
+
+  return NULL;
+}
+
 //
 //
 // // //quite obviously the case that this should be in the message class--how to link?
@@ -188,61 +205,96 @@ Session::~Session()
   mailimap_free(session);
   //CHECK if this is the right place to free
   // free(msgPtr);
+  //also need to free the  messages you just had
 }
 
 std::string Message::getBody()
 {
-  // return (std::to_string(msgCount));
-  // clistiter* cur;
-  // /*iterate through each message*/
-  // for(cur = clist_begin(fetch_result_storage); cur!=NULL; cur=clist_next(cur))
-  // {
-  //   struct mailimap_msg_att* msg_att;
-  //   //https://www.geeksforgeeks.org/size_t-data-type-c-language/
-  //   size_t msg_size;
-  //   char* msg_content;
-  //
-  //   msg_att=(mailimap_msg_att*)clist_content(cur);
-  //   msg_content = get_msg_att_msg_content(msg_att, &msg_size);
-  //   if(msg_content==NULL)
-  //   {
-  //     continue;
-  //   }
-  //
-  //   *p_msg_size=msg_size;
-  //   return msg_content;
-  // }
-  // return NULL;
-  std::string test = std::to_string(msgCount);
-  return test;
+  /*NEW SOLUTION*/
+  //NOTE alternative function to fetch body peek section in Csample
+  struct mailimap_section * section = mailimap_section_new(NULL);
+  struct mailimap_fetch_att* fetchBodyAtt = mailimap_fetch_att_new_body_section(section);
+  //create fetch type
+  struct mailimap_fetch_type* fetchType = mailimap_fetch_type_new_fetch_att_list_empty();
+  //put fetch attribute into fetch type
+  mailimap_fetch_type_new_fetch_att_list_add(fetchType, fetchBodyAtt);
+  //creates a set with a SINGLE message
+  struct mailimap_set* mailimapSetSingle = mailimap_set_new_single(uid);
+  //create a new clist storage structure
+  clist* fetchResult;
+    //fetch the body into clist** result
+  mailimap_uid_fetch(session, mailimapSetSingle, fetchType, &fetchResult);
+  // NEED TO CHECK IF THERE'S A BETTER WAY TO ACCESS THIS. WHAT'S the right declaration to get the ideal outcome?
+  clistiter* cur;
+
+  for(cur=clist_begin(fetchResult); cur!=NULL; cur=clist_next(cur))
+  {
+    struct mailimap_msg_att* msg_att = (mailimap_msg_att*)clist_content(cur);
+    char* msg_content = get_msg_att_msg_content(msg_att);
+    if(msg_content==NULL)
+    {
+      continue;
+    }
+    std::string msg = std::string(msg_content);
+    mailimap_fetch_list_free(fetchResult);
+    return msg;
+  }
+  //this gets you message attribute which you then need to break down
+  //att_list details access
+  std::string empty = "empty";
+  mailimap_fetch_list_free(fetchResult);
+  return empty;
 }
 
+//STOPPED HERE. REVIEW HOW MESSAGE IS RETURNED.
 std::string Message::getField(std::string fieldname)
 {
-  // clistiter* cur;
-  // /*iterate through each message*/
-  // for(cur = clist_begin(fetch_result_storage); cur!=NULL; cur=clist_next(cur))
-  // {
-  //   struct mailimap_msg_att* msg_att;
-  //   //https://www.geeksforgeeks.org/size_t-data-type-c-language/
-  //   size_t msg_size;
-  //   char* msg_content;
-  //
-  //   msg_att=(mailimap_msg_att*)clist_content(cur);
-  //   msg_content = get_msg_att_msg_content(msg_att, &msg_size);
-  //   if(msg_content==NULL)
-  //   {
-  //     continue;
-  //   }
-  //
-  //   *p_msg_size=msg_size;
-  //   return msg_content;
-  // }
-  // return NULL;
-  // return (std::to_string(msgCount));
-  std::string test = "test";
-  return test;
+  //OLD solution
+  //so it seems like you need to use the beginning section attributes to get the headers?
+  // clist* clist_hdr_list;
+  // struct mailimap_header_list* hdrList =  mailimap_header_list_new(clist_hdr_list);
+  // struct mailimap_section* mailimapHeaderFields = mailimap_section_new_header_fields(hdrList);
+  // struct mailimap_fetch_att* fetchAttHeader =  mailimap_fetch_att_new_body_section(mailimapHeaderFields);
+  // struct mailimap_fetch_type* fetchType =  mailimap_fetch_type_new_fetch_att_list_empty();
+  // mailimap_fetch_type_new_fetch_att_list_add(fetchType, fetchAttHeader);
+  // struct mailimap_set* mailimapSetSingle = mailimap_set_new_single(uid);
+  // //create a storage structure for fetch result
+  // clist* fetchResult;
+  // struct mailimap_status_att_list_ add
 
+  // CURRENT SOLUTION
+  // struct mailimap_fetch_att* fetchHeaderAtt = mailimap_fetch_att_new_rfc822_header();
+  // //create fetch type
+  // struct mailimap_fetch_type* fetchType = mailimap_fetch_type_new_fetch_att_list_empty();
+  // //put fetch attribute into fetch type
+  // mailimap_fetch_type_new_fetch_att_list_add(fetchType, fetchHeaderAtt);
+  // //creates a set with a SINGLE message
+  // struct mailimap_set* mailimapSetSingle = mailimap_set_new_single(uid);
+  // //create a new clist storage structure
+  // clist* fetchResult;
+  //   //fetch the body into clist** result
+  // mailimap_uid_fetch(session, mailimapSetSingle, fetchType, &fetchResult);
+  // // NEED TO CHECK IF THERE'S A BETTER WAY TO ACCESS THIS. WHAT'S the right declaration to get the ideal outcome?
+  // clistiter* cur;
+  //
+  // for(clistiter* cur=clist_begin(fetchResult); cur!=NULL; cur=clist_next(cur))
+  // {
+  //   struct mailimap_msg_att* msg_att = (mailimap_msg_att*)clist_content(cur);
+  //   // char* msg_content = get_msg_header(msg_att);
+  //   // if(msg_content==NULL)
+  //   // {
+  //   //   continue;
+  //   // }
+  //   // std::string header = std::string(msg_content);
+  //   mailimap_fetch_list_free(fetchResult);
+  //   std::string empty = "empty";
+  //   return empty;
+  // }
+  // //remember to FREE fetch type later
+  //check if SECTION needs to be freed as well
+  std::string empty = "empty";
+  // mailimap_fetch_list_free(fetchResult);
+  return empty;
 }
 
 void Message::deleteFromMailbox()
