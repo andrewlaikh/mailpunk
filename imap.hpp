@@ -15,7 +15,8 @@ public:
 	//use initializer list for session and uid
 	Message(mailimap* session, uint32_t uid, int msgCount):session(session), uid(uid), msgCount(msgCount){}
 	//
-	//
+	//self-defined function to fetch message
+ 	// void fetch_msg();
 	/**
 	 * Get the body of the message. You may chose to either include the headers or not.
 	 */
@@ -27,14 +28,15 @@ public:
 	/**
 	 * Remove this mail from its mailbox
 	 */
-	 //self-defined function to fetch message
-	void fetch_msg(struct mailimap* imap, uint32_t uid);
-	// //self-defined function to get msg att, worth modifying into string to return
-	char* get_msg_att_msg_content(struct mailimap_msg_att * msg_att);
+
+	// self-defined function to get msg att, worth modifying into string to return
+	std::string get_msg_content(struct mailimap_msg_att * msg_att);
+	//  self-defined function to get msg header
+	std::string get_msg_header(struct mailimap_msg_att * msg_att, std::string fieldname);
 	//
 	// // char* get_msg_content(clist* fetch_result, size_t* p_msg_size);
 	//
-	char* get_msg_header(struct mailimap_msg_att * msg_att);
+	// char* get_msg_header(struct mailimap_msg_att * msg_att);
 
 	void deleteFromMailbox();
 	//not included, so is there a need for a destructor on the message side?
@@ -42,6 +44,8 @@ public:
 private:
 	mailimap* session;
 	uint32_t uid;
+	//this should be freed
+	struct mailimap_set* mailimapSetStorage;
 	//remember that this must be freed
 	clist* fetch_result_storage;
 	size_t* p_msg_size;
@@ -66,6 +70,7 @@ public:
 	*/
 	//self-defined function to get UID for a specific message
 	uint32_t get_uid(struct mailimap_msg_att* msg_att);
+
 	//get message count
 	int get_msg_count();
 
@@ -77,7 +82,7 @@ public:
 	/**
 	* select a mailbox (only one can be selected at any given time)
 	*
-	* this can only be performed after login
+	// * this can only be performed after login
 	*/
 	void selectMailbox(std::string const& mailbox);
 
@@ -86,7 +91,7 @@ public:
 	//also consider whether destruction is needed, but not imapSession in destructor
 
 private:
-	mailimap* session;
+	mailimap* session = NULL;
 	Message** msgPtr = NULL;
 	//temp variable
 	int msgCount;
