@@ -138,18 +138,24 @@ std::string Message::get_msg_header(struct mailimap_msg_att* msg_att, std::strin
     }
     std::string From = "From";
     std::string Subject = "Subject";
-    if (From.compare(fieldname) == 0)
+    if (Subject.compare(fieldname) == 0)
     {
-       std::string msg = std::string(item->att_data.att_static->att_data.att_env->env_subject);
+      std::string msg = std::string(item->att_data.att_static->att_data.att_env->env_subject);
+      return msg;
     }
-    // if (Subject.compare(fieldname)==0)
-    // {
-    //   //need to set a pointer to get it to work basically.
-    //   clistiter* cur = clist_begin(item->att_data.att_static->att_data.att_env->env_from->frm_list);
-    //   struct mailimap_address* msgAddress = (mailimap_address*)clist_content(cur);
-    //   std::string address = std::string(msgAddress-> ad_personal_name);
-    //   return address;
-    // }
+    if (From.compare(fieldname)==0)
+    {
+      //   //need to set a pointer to get it to work basically.
+      clistiter* cur = clist_begin(item->att_data.att_static->att_data.att_env->env_from->frm_list);
+      struct mailimap_address* msgAddress = (mailimap_address*)clist_content(cur);
+      //NEED TO VALIDATE FOR INFORMATION INSIDE.
+      std::string name = std::string(msgAddress-> ad_mailbox_name);
+      std::string mailbox = std::string(msgAddress->ad_host_name);
+      return name + "@" + mailbox;
+      // std:: string address = name + "@" + mailbox;
+      std::string empty = "past";
+      return empty;
+    }
   }
   std::string empty = "";
   return empty;
@@ -177,7 +183,7 @@ void Session::selectMailbox(std::string const& mailbox)
   int length = mailbox.length();
   char mb_array[length+1];
   strcpy(mb_array, mailbox.c_str());
-  this-> mb = mb_array;
+  mb = mb_array;
   //simply converting the string constants using pointers.
   check_error(mailimap_select(this->session, mailbox.c_str()), "could not select mailbox");
 }
@@ -237,7 +243,7 @@ std::string Message::getField(std::string fieldname)
     return msg_content;
   }
   // // check if SECTION needs to be freed as well
-  std::string empty = "empty1";
+  std::string empty = "empty";
   mailimap_fetch_list_free(fetchResultHeader);
   return empty;
 }
@@ -245,4 +251,13 @@ std::string Message::getField(std::string fieldname)
 
 void Message::deleteFromMailbox()
 {
+  mailimapFlagList = mailimap_flag_list_new_empty();
+  struct mailimap_flag* flagDelete = mailimap_flag_new_deleted();
+  mailimap_flag_list_add(mailimapFlagList, flagDelete);
+  struct mailimap_store_att_flags* storeAttFlags = mailimap_store_att_flags_new_set_flags(mailimapFlagList);
+  struct mailimap_set* mailimapSetSingle = mailimap_set_new_single(uid);
+  check_error(mailimap_uid_store(session, mailimapSetSingle, storeAttFlags), "Error storing flags");
+  mailimap_store_att_flags_new(-1,1,mailimapFlagList);
+  check_error(mailimap_expunge(session), "Error expunging flags");
+
 }

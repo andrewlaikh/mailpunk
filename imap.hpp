@@ -44,13 +44,8 @@ public:
 private:
 	mailimap* session;
 	uint32_t uid;
-	//this should be freed
-	struct mailimap_set* mailimapSetStorage;
-	//remember that this must be freed
-	clist* fetch_result_storage;
-	size_t* p_msg_size;
-	//temp variable
 	uint32_t msgCount;
+	struct mailimap_flag_list* mailimapFlagList; 
 
 };
 
