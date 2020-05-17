@@ -7,5 +7,6 @@ Implemented the control logic found in the imap files, with the UI being provide
 User-interface provided by coursework supervisor. Awarded grade A (>= 70%). 
 
 Sample interaction: 
-![Mailpunk Implementation]
-(https://github.com/andrewlaikh/mailpunk/blob/master/Demo/mailpunk.gif)
+
+
+![](/Demo/mailpunk.gif)
